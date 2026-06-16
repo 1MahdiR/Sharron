@@ -69,7 +69,7 @@ class MeshNetwork:
                     break
 
     def _handle_incoming_connection(self, sock: socket.socket, addr: tuple):
-        """Executes the challenge-response handshake before allowing data transmission."""
+        """Executes handshake and streams the entire payload dynamically regardless of size."""
         peer_ip = addr[0]
         try:
             challenge = self.crypto.generate_challenge()
@@ -84,7 +84,15 @@ class MeshNetwork:
 
             print(f"✅ [Handshake Verified] Secure session established with {peer_ip}!")
             
-            raw_encrypted_data = sock.recv(4096)
+            chunks = []
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break  # Sender is done transmitting everything!
+                chunks.append(chunk)
+                
+            raw_encrypted_data = b"".join(chunks)
+            
             if raw_encrypted_data:
                 decrypted_bytes = self.crypto.decrypt_data(raw_encrypted_data)
                 payload = json.loads(decrypted_bytes.decode('utf-8'))
