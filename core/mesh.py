@@ -6,7 +6,7 @@ from core.crypto import CryptoEngine
 TCP_PORT = 58888
 
 class MeshNetwork:
-    def __init__(self, crypto_engine: CryptoEngine):
+    def __init__(self, crypto_engine: CryptoEngine, remote_change_callback=None):
         """
         Initializes the TCP Mesh Network.
         
@@ -17,6 +17,8 @@ class MeshNetwork:
         self.running = False
 
         self.discovered_peers = set()
+
+        self.remote_change_callback = remote_change_callback
 
     def register_peer(self, peer_ip: str):
         """Adds a newly discovered peer IP address to the active routing tables."""
@@ -86,7 +88,11 @@ class MeshNetwork:
             if raw_encrypted_data:
                 decrypted_bytes = self.crypto.decrypt_data(raw_encrypted_data)
                 payload = json.loads(decrypted_bytes.decode('utf-8'))
-                print(f"📥 [Received Payload] From {peer_ip}: {payload}")
+                
+                print(f"📥 [Received Payload] From {peer_ip}: [{payload['action']}] {payload['file_name']}")
+                
+                if self.remote_change_callback:
+                    self.remote_change_callback(payload)
 
         except Exception as e:
             print(f"⚠️ Connection error handling {peer_ip}: {e}")
