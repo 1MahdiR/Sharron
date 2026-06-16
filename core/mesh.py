@@ -16,6 +16,14 @@ class MeshNetwork:
         self.server_socket = None
         self.running = False
 
+        self.discovered_peers = set()
+
+    def register_peer(self, peer_ip: str):
+        """Adds a newly discovered peer IP address to the active routing tables."""
+        if peer_ip not in self.discovered_peers:
+            self.discovered_peers.add(peer_ip)
+            print(f"🔗 Peer {peer_ip} registered in mesh network memory.")
+
     def start_server(self):
         """Spins up the permanent TCP listening server in a background thread."""
         self.running = True
@@ -115,3 +123,21 @@ class MeshNetwork:
             return False
         finally:
             sock.close()
+
+    def broadcast_payload(self, payload: dict):
+        """
+        Iterates over all registered peer IP addresses and dispatches
+        the secure payload to each target.
+        """
+        if not self.discovered_peers:
+            print("📭 Broadcast skipped: No registered peers in routing memory.")
+            return
+
+        print(f"📡 Broadcasting payload to {len(self.discovered_peers)} registered peer(s)...")
+        
+        for peer_ip in list(self.discovered_peers):
+            success = self.send_secure_payload(peer_ip, payload)
+            if success:
+                print(f"   ✅ Broadcast successfully delivered to {peer_ip}")
+            else:
+                print(f"   ❌ Broadcast delivery failed to {peer_ip}")

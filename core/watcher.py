@@ -4,8 +4,9 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 class SharronWatchHandler(FileSystemEventHandler):
-    def __init__(self):
+    def __init__(self, change_callback):
         super().__init__()
+        self.change_callback = change_callback
         self.recent_events = {}
         self.debounce_interval = 1.0
 
@@ -21,37 +22,35 @@ class SharronWatchHandler(FileSystemEventHandler):
         self.recent_events[file_path] = current_time
         return False
 
-    def on_modified(self, event):
-        if event.is_directory or self._is_spam_event(event.src_path):
-            return
-        print(f"📝 File Modified: {os.path.basename(event.src_path)}")
-
     def on_created(self, event):
         if event.is_directory or self._is_spam_event(event.src_path):
             return
-        print(f"🆕 File Created: {os.path.basename(event.src_path)}")
+        self.change_callback(action="CREATED", file_name=os.path.basename(event.src_path))
 
-    def on_moved(self, event):
-        if event.is_directory:
+    def on_modified(self, event):
+        if event.is_directory or self._is_spam_event(event.src_path):
             return
-
-        destination_name = os.path.basename(event.dest_path)
-
-        print(f"📝 File Modified (via swap): {destination_name}")
+        self.change_callback(action="MODIFIED", file_name=os.path.basename(event.src_path))
 
     def on_deleted(self, event):
         if event.is_directory:
             return
-        print(f"🗑️ File Deleted: {os.path.basename(event.src_path)}")
+        self.change_callback(action="DELETED", file_name=os.path.basename(event.src_path))
+
+    def on_moved(self, event):
+        if event.is_directory:
+            return
+        
+        self.change_callback(action="MODIFIED", file_name=os.path.basename(event.dest_path))
 
 class DirectoryWatcher:
-    def __init__(self, path_to_watch: str):
+    def __init__(self, path_to_watch: str, change_callback):
         """
         Initializes the file system monitor.
         :param path_to_watch: Absolute path to the local SharronDrive directory
         """
         self.path = path_to_watch
-        self.event_handler = SharronWatchHandler()
+        self.event_handler = SharronWatchHandler(change_callback)
         self.observer = Observer()
 
     def start(self):
