@@ -66,7 +66,7 @@ class DiscoveryMesh:
                     continue
 
                 if message.startswith(MAGIC_WORD):
-                    sender_hostname = message.split('-')[1]
+                    sender_hostname = '-'.join(message.split('-')[1:])
                     
                     if sender_hostname != self.hostname:
                         self.peer_callback(addr[0], sender_hostname)
