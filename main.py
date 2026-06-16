@@ -5,20 +5,18 @@ from core.crypto import CryptoEngine
 from core.discovery import DiscoveryMesh
 from core.mesh import MeshNetwork
 
-# Global reference to trigger sending payloads inside our discovery callback
 mesh_engine = None
 
 def on_peer_found(ip_address, device_name):
     """Fires automatically when a peer is discovered via UDP heartbeat."""
     print(f"\n✨ Discovered trusted peer: {device_name} at {ip_address}")
-    
     print(f"🚀 Triggering secure sync handshake over TCP to {ip_address}...")
+    
     mock_sync_event = {
         "action": "FILE_MODIFIED",
-        "file": "budget.xlsx",
-        "hash": "sha256_xyz789_placeholder"
+        "file": "ledger.txt",
+        "hash": "sha256_mock_abc123"
     }
-    
     mesh_engine.send_secure_payload(ip_address, mock_sync_event)
 
 def main():
@@ -26,18 +24,23 @@ def main():
     print("-----------------------------------------")
     print("           Sharron Full Stack Node       ")
     print("-----------------------------------------")
-
+    
     app_settings = Settings()
+    
+    if not app_settings.is_onboarded():
+        print("🔨 Initializing a fresh Sharron storage node...")
+        app_settings.initialize_fresh_cluster()
     
     session_password = app_settings.get_raw_passphrase_for_session()
     
-    crypto = CryptoEngine(session_password, app_settings.salt)
+    crypto = CryptoEngine(session_password)
     mesh_engine = MeshNetwork(crypto)
     
     mesh_engine.start_server()
     
     my_hostname = socket.gethostname()
     print(f"💻 Node Identity: [{my_hostname}]")
+    
     discovery = DiscoveryMesh(my_hostname, crypto, on_peer_found)
     discovery.start()
     
