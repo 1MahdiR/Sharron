@@ -108,7 +108,7 @@ def main():
     discovery = DiscoveryMesh(my_hostname, crypto, on_peer_found)
     discovery.start()
 
-    watcher = DirectoryWatcher(app_settings.sync_path, on_local_file_changed)
+    watcher = DirectoryWatcher(app_settings.sync_path, None)
     watcher.start()
     
     print("\nPress Ctrl+C to stop the node runtime engine.")

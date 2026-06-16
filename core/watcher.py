@@ -25,23 +25,34 @@ class SharronWatchHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory or self._is_spam_event(event.src_path):
             return
-        self.change_callback(action="CREATED", file_name=os.path.basename(event.src_path))
+        if self.change_callback:
+            self.change_callback(action="CREATED", file_name=os.path.basename(event.src_path))
+        else:
+            print(f"CREATE signal detected: {os.path.basename(event.src_path)}")
 
     def on_modified(self, event):
         if event.is_directory or self._is_spam_event(event.src_path):
             return
-        self.change_callback(action="MODIFIED", file_name=os.path.basename(event.src_path))
+        if self.change_callback:
+            self.change_callback(action="MODIFIED", file_name=os.path.basename(event.src_path))
+        else:
+            print(f"MODIFY signal detected: {os.path.basename(event.src_path)}")
 
     def on_deleted(self, event):
         if event.is_directory:
             return
-        self.change_callback(action="DELETED", file_name=os.path.basename(event.src_path))
+        if self.change_callback:
+            self.change_callback(action="DELETED", file_name=os.path.basename(event.src_path))
+        else:
+            print(f"DELETE signal detected: {os.path.basename(event.src_path)}")
 
     def on_moved(self, event):
         if event.is_directory:
             return
-        
-        self.change_callback(action="MODIFIED", file_name=os.path.basename(event.dest_path))
+        if self.change_callback:
+            self.change_callback(action="MOVED", file_name=os.path.basename(event.dest_path))
+        else:
+            print(f"MOVE signal detected: {os.path.basename(event.src_path)}")
 
 class DirectoryWatcher:
     def __init__(self, path_to_watch: str, change_callback):
@@ -55,7 +66,7 @@ class DirectoryWatcher:
 
     def start(self):
         """Schedules the watcher and launches the background OS worker thread."""
-        # recursive=False means it only watches the top-level folder. 
+        # recursive=False means it only watches the top-level folder.
         # TODO: support subfolders!
         self.observer.schedule(self.event_handler, self.path, recursive=False)
         self.observer.start()
