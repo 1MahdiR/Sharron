@@ -36,7 +36,7 @@ class CryptoEngine:
     def generate_challenge(self) -> str:
         return base64.b64encode(os.urandom(32)).decode('utf-8')
 
-    def solve_challenge(self) -> str:
+    def solve_challenge(self, challenge) -> str:
         return self.cipher.encrypt(challenge.encode('utf-8')).decode('utf-8')
 
     def verify_challenge_solution(self, original_challenge: str, solution: str) -> bool:

@@ -49,7 +49,7 @@ class DiscoveryMesh:
         sock.close()
 
     def _listen_loop(self):
-        """Listens on port 9999 for encrypted broadcasts from other Sharron nodes."""
+        """Listens on port 59999 for encrypted broadcasts from other Sharron nodes."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
