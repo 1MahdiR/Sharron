@@ -3,7 +3,7 @@ import time
 import threading
 from core.crypto import CryptoEngine
 
-DISCOVERY_PORT = 9999
+DISCOVERY_PORT = 59999
 MAGIC_WORD = "SHARRON_PING"
 
 class DiscoveryMesh:
