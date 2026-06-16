@@ -18,13 +18,13 @@ def on_peer_found(ip_address, device_name):
     if mesh_engine:
         mesh_engine.register_peer(ip_address)
         
-        print(f"🚀 Triggering secure sync handshake testing over TCP to {ip_address}...")
-        mock_sync_event = {
-            "action": "PEER_CONNECTED",
-            "file_name": "network_mesh",
-            "timestamp": time.time()
-        }
-        mesh_engine.send_secure_payload(ip_address, mock_sync_event)
+        # print(f"🚀 Triggering secure sync handshake testing over TCP to {ip_address}...")
+        # mock_sync_event = {
+        #     "action": "PEER_CONNECTED",
+        #     "file_name": "network_mesh",
+        #     "timestamp": time.time()
+        # }
+        # mesh_engine.send_secure_payload(ip_address, mock_sync_event)
 
 def on_local_file_changed(action, file_name):
     """
