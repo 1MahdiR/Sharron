@@ -1,9 +1,11 @@
 import socket
 import time
+
 from config.settings import Settings
 from core.crypto import CryptoEngine
 from core.discovery import DiscoveryMesh
 from core.mesh import MeshNetwork
+from core.watcher import DirectoryWatcher
 
 mesh_engine = None
 
@@ -43,6 +45,9 @@ def main():
     
     discovery = DiscoveryMesh(my_hostname, crypto, on_peer_found)
     discovery.start()
+
+    watcher = DirectoryWatcher(app_settings.sync_path)
+    watcher.start()
     
     print("\nPress Ctrl+C to stop the node runtime engine.")
     try:
@@ -52,6 +57,7 @@ def main():
         print("\n🛑 Shutting down Sharron core layers safely...")
         discovery.stop()
         mesh_engine.stop()
+        watcher.stop()
 
 if __name__ == "__main__":
     main()
