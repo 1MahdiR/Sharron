@@ -8,6 +8,7 @@ from core.crypto import CryptoEngine
 from core.discovery import DiscoveryMesh
 from core.mesh import MeshNetwork
 from core.watcher import DirectoryWatcher
+from core.serializer import EventSerializer
 
 mesh_engine = None
 
@@ -26,37 +27,57 @@ def on_peer_found(ip_address, device_name):
         # }
         # mesh_engine.send_secure_payload(ip_address, mock_sync_event)
 
-def on_local_file_changed(action, file_name):
+def on_local_file_changed(event):
     """
     Fires automatically whenever the file watcher detects a stable change.
-    Packages the metadata AND the raw file content, then broadcasts it.
+    Ingests the complete watchdog event object, serializes the specific 
+    action, and broadcasts the payload to connected peers.
     """
-    print(f"📡 File event caught: [{action}] {file_name}")
-    
     app_settings = Settings()
-    full_path = os.path.join(app_settings.sync_path, file_name)
+    action = event.event_type.upper()
     
-    file_content_base64 = ""
+    # Calculate relative paths using the root directory to maintain folder structures
+    src_name = os.path.relpath(event.src_path, app_settings.sync_path)
+    dest_name = None
     
-    if action in ("CREATED", "MODIFIED") and os.path.exists(full_path):
-        try:
-            with open(full_path, "rb") as f:
-                raw_bytes = f.read()
-                # Encode the raw binary to a safe ASCII text string for JSON transmission
-                file_content_base64 = base64.b64encode(raw_bytes).decode('utf-8')
-        except Exception as e:
-            print(f"⚠️ Could not read file content for transmission: {e}")
-            return
+    if hasattr(event, 'dest_path') and event.dest_path:
+        dest_name = os.path.relpath(event.dest_path, app_settings.sync_path)
 
-    sync_payload = {
-        "action": action,
-        "file_name": file_name,
-        "file_data": file_content_base64,
-        "timestamp": time.time()
-    }
+    print(f"📡 File event caught: [{action}] {src_name}" + (f" -> {dest_name}" if dest_name else ""))
+    
+    # Bundle the distinct payload requirements via the serializer
+    sync_payload = EventSerializer.serialize(
+        action=action,
+        src_name=src_name,
+        dest_name=dest_name,
+        sync_path=app_settings.sync_path
+    )
 
     if mesh_engine:
         mesh_engine.broadcast_payload(sync_payload)
+
+    # print(full_path)
+    
+    # if action in ("CREATED", "MODIFIED") and os.path.exists(full_path):
+    #     print(full_path)
+    #     try:
+    #         with open(full_path, "rb") as f:
+    #             raw_bytes = f.read()
+    #             # Encode the raw binary to a safe ASCII text string for JSON transmission
+    #             file_content_base64 = base64.b64encode(raw_bytes).decode('utf-8')
+    #     except Exception as e:
+    #         print(f"⚠️ Could not read file content for transmission: {e}")
+    #         return
+
+    # sync_payload = {
+    #     "action": action,
+    #     "file_name": file_name,
+    #     "file_data": file_content_base64,
+    #     "timestamp": time.time()
+    # }
+
+    # if mesh_engine:
+    #     mesh_engine.broadcast_payload(sync_payload)
 
 def on_remote_file_received(payload):
     """
@@ -64,24 +85,55 @@ def on_remote_file_received(payload):
     from a remote peer. Writes the physical changes directly to disk.
     """
     action = payload["action"]
-    file_name = payload["file_name"]
-    
     app_settings = Settings()
-    full_path = os.path.join(app_settings.sync_path, file_name)
     
-    print(f"🛠️  Applying remote changes locally: [{action}] -> {file_name}")
-    
-    if action in ("CREATED", "MODIFIED"):
-        raw_bytes = base64.b64decode(payload["file_data"].encode('utf-8'))
+    if action == "MOVED":
+        src_name = payload["src_name"]
+        dest_name = payload["dest_name"]
+        full_src_path = os.path.join(app_settings.sync_path, src_name)
+        full_dest_path = os.path.join(app_settings.sync_path, dest_name)
         
+        print(f"🛠️  Applying remote changes locally: [MOVED] {src_name} -> {dest_name}")
+        
+        # Ensure target subfolder structure exists before renaming
+        dest_dir = os.path.dirname(full_dest_path)
+        if dest_dir and not os.path.exists(dest_dir):
+            os.makedirs(dest_dir, exist_ok=True)
+            
+        if os.path.exists(full_src_path):
+            os.rename(full_src_path, full_dest_path)
+            print(f"🚚 File moved locally: {full_dest_path}")
+            
+    elif action in ("CREATED", "MODIFIED"):
+        file_name = payload["file_name"]
+        full_path = os.path.join(app_settings.sync_path, file_name)
+        
+        print(f"🛠️  Applying remote changes locally: [{action}] -> {file_name}")
+        
+        # Ensure all multi-level parent subfolders exist on disk
+        parent_dir = os.path.dirname(full_path)
+        if parent_dir and not os.path.exists(parent_dir):
+            os.makedirs(parent_dir, exist_ok=True)
+            
+        raw_bytes = base64.b64decode(payload["file_data"].encode('utf-8'))
         with open(full_path, "wb") as f:
             f.write(raw_bytes)
         print(f"💾 File synchronized and written to disk: {full_path}")
         
     elif action == "DELETED":
+        file_name = payload["file_name"]
+        full_path = os.path.join(app_settings.sync_path, file_name)
+        
+        print(f"🛠️  Applying remote changes locally: [DELETED] -> {file_name}")
+        
         if os.path.exists(full_path):
             os.remove(full_path)
             print(f"🗑️ File deleted locally to match remote cluster.")
+        
+    # elif action == "DELETED":
+    #     if os.path.exists(full_path):
+    #         os.remove(full_path)
+    #         print(f"🗑️ File deleted locally to match remote cluster.")
 
 def main():
     global mesh_engine
@@ -108,7 +160,7 @@ def main():
     discovery = DiscoveryMesh(my_hostname, crypto, on_peer_found)
     discovery.start()
 
-    watcher = DirectoryWatcher(app_settings.sync_path, None)
+    watcher = DirectoryWatcher(app_settings.sync_path, on_local_file_changed)
     watcher.start()
     
     print("\nPress Ctrl+C to stop the node runtime engine.")
