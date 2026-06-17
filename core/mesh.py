@@ -83,6 +83,8 @@ class MeshNetwork:
                 return
 
             print(f"✅ [Handshake Verified] Secure session established with {peer_ip}!")
+
+            sock.sendall(b"OK")
             
             chunks = []
             while True:
@@ -122,6 +124,11 @@ class MeshNetwork:
 
             solution = self.crypto.solve_challenge(challenge)
             sock.sendall(solution.encode('utf-8'))
+
+            auth_confirmation = sock.recv(1024).decode('utf-8')
+            if auth_confirmation != "OK":
+                print(f"❌ Remote peer rejected authentication.")
+                return False
 
             raw_bytes = json.dumps(payload).encode('utf-8')
             encrypted_payload = self.crypto.encrypt_data(raw_bytes)
