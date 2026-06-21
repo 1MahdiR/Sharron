@@ -79,61 +79,107 @@ def on_local_file_changed(event):
     # if mesh_engine:
     #     mesh_engine.broadcast_payload(sync_payload)
 
-def on_remote_file_received(payload):
-    """
-    Fires automatically when the mesh network receives a secure sync instruction 
-    from a remote peer. Writes the physical changes directly to disk.
-    """
+def on_remote_file_received(payload, sender_ip: str, mesh_engine):
     action = payload["action"]
     app_settings = Settings()
     
+    # CASE 1: The sender couldn't find the file to fulfill our fallback request
+    if action == "FILE_NOT_FOUND":
+        print(f"❌ [Action Aborted] Remote peer does not have '{payload['file_name']}'. Dropping operation.")
+        return
+
+    # CASE 2: Process a Move Event
     if action == "MOVED":
         src_name = payload["src_name"]
         dest_name = payload["dest_name"]
         full_src_path = os.path.join(app_settings.sync_path, src_name)
+        
+        # Critical Fallback Trigger: The file we want to move does not exist locally!
+        if not os.path.exists(full_src_path):
+            print(f"⚠️ Cannot apply [MOVED] event. Source '{src_name}' is missing.")
+            request_file_fallback(mesh_engine, sender_ip, dest_name)
+            return
+            
         full_dest_path = os.path.join(app_settings.sync_path, dest_name)
-        
-        print(f"🛠️  Applying remote changes locally: [MOVED] {src_name} -> {dest_name}")
-        
-        # Ensure target subfolder structure exists before renaming
         dest_dir = os.path.dirname(full_dest_path)
         if dest_dir and not os.path.exists(dest_dir):
             os.makedirs(dest_dir, exist_ok=True)
             
-        if os.path.exists(full_src_path):
-            os.rename(full_src_path, full_dest_path)
-            print(f"🚚 File moved locally: {full_dest_path}")
+        os.rename(full_src_path, full_dest_path)
+        print(f"🚚 File moved locally: {full_dest_path}")
             
+    # CASE 3: Process Standard Writes (Created/Modified)
     elif action in ("CREATED", "MODIFIED"):
         file_name = payload["file_name"]
+        file_data = payload.get("file_data")
+        
+        # Critical Fallback Trigger: Data field is missing or empty
+        if not file_data:
+            print(f"⚠️ Received [{action}] payload for '{file_name}' with no file data.")
+            request_file_fallback(mesh_engine, sender_ip, file_name)
+            return
+            
         full_path = os.path.join(app_settings.sync_path, file_name)
-        
-        print(f"🛠️  Applying remote changes locally: [{action}] -> {file_name}")
-        
-        # Ensure all multi-level parent subfolders exist on disk
         parent_dir = os.path.dirname(full_path)
         if parent_dir and not os.path.exists(parent_dir):
             os.makedirs(parent_dir, exist_ok=True)
             
-        raw_bytes = base64.b64decode(payload["file_data"].encode('utf-8'))
+        raw_bytes = base64.b64decode(file_data.encode('utf-8'))
         with open(full_path, "wb") as f:
             f.write(raw_bytes)
-        print(f"💾 File synchronized and written to disk: {full_path}")
+            f.flush()
+            os.fsync(f.fileno())
+        print(f"💾 File written to disk: {full_path}")
         
     elif action == "DELETED":
         file_name = payload["file_name"]
         full_path = os.path.join(app_settings.sync_path, file_name)
-        
-        print(f"🛠️  Applying remote changes locally: [DELETED] -> {file_name}")
-        
         if os.path.exists(full_path):
             os.remove(full_path)
-            print(f"🗑️ File deleted locally to match remote cluster.")
+            print(f"🗑️ File deleted locally: {file_name}")
         
     # elif action == "DELETED":
     #     if os.path.exists(full_path):
     #         os.remove(full_path)
     #         print(f"🗑️ File deleted locally to match remote cluster.")
+
+def request_file_fallback(mesh_engine, sender_ip: str, file_name: str) -> bool:
+    """
+    Explicitly requests a remote peer to send the full data for a specific file path
+    when a local action (like a MOVE or empty payload) lacks the source content.
+    """
+    print(f"🔄 Triggering fallback request to {sender_ip} for missing file: {file_name}")
+    request_payload = {
+        "action": "FILE_REQUEST",
+        "file_name": file_name,
+        "timestamp": time.time()
+    }
+    return mesh_engine.send_secure_payload(sender_ip, request_payload)
+
+def handle_incoming_file_request(mesh_engine, peer_ip: str, requested_file: str, sync_path: str):
+    """
+    Processes an incoming fallback request. Sends the file back if found,
+    otherwise sends a notification that the file does not exist.
+    """
+    full_path = os.path.join(sync_path, requested_file)
+    
+    if os.path.exists(full_path) and os.path.isfile(full_path):
+        print(f"📤 Fulfilling fallback request for {requested_file}. Sending content...")
+        fallback_payload = EventSerializer.serialize(
+            action="MODIFIED",
+            src_name=requested_file,
+            dest_name=None,
+            sync_path=sync_path
+        )
+        mesh_engine.send_secure_payload(peer_ip, fallback_payload)
+    else:
+        print(f"⚠️ Requested file {requested_file} missing locally. Notifying peer.")
+        nack_payload = {
+            "action": "FILE_NOT_FOUND",
+            "file_name": requested_file,
+            "timestamp": time.time()
+        }
+        mesh_engine.send_secure_payload(peer_ip, nack_payload)
 
 def main():
     global mesh_engine
