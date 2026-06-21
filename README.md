@@ -29,7 +29,7 @@ Sharron is completely decentralized and operates using three distinct concurrent
 ### 1. Install Dependencies
 Clone the repository and install the filesystem watching and cryptographic primatives:
 ```bash
-git clone [https://github.com/YOUR_USERNAME/sharron.git](https://github.com/YOUR_USERNAME/sharron.git)
+git clone [https://github.com/1MahdiR/sharron.git](https://github.com/1MahdiR/Sharron/edit/master/README.md)
 cd sharron
 pip install -r requirements.txt
 ```
