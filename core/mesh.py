@@ -102,7 +102,7 @@ class MeshNetwork:
                 print(f"📥 [Received Payload] From {peer_ip}: [{payload['action']}] {payload['file_name']}")
                 
                 if self.remote_change_callback:
-                    self.remote_change_callback(payload)
+                    self.remote_change_callback(payload, peer_ip, self)
 
         except Exception as e:
             print(f"⚠️ Connection error handling {peer_ip}: {e}")

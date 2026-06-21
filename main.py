@@ -83,18 +83,15 @@ def on_remote_file_received(payload, sender_ip: str, mesh_engine):
     action = payload["action"]
     app_settings = Settings()
     
-    # CASE 1: The sender couldn't find the file to fulfill our fallback request
     if action == "FILE_NOT_FOUND":
         print(f"❌ [Action Aborted] Remote peer does not have '{payload['file_name']}'. Dropping operation.")
         return
 
-    # CASE 2: Process a Move Event
     if action == "MOVED":
         src_name = payload["src_name"]
         dest_name = payload["dest_name"]
         full_src_path = os.path.join(app_settings.sync_path, src_name)
         
-        # Critical Fallback Trigger: The file we want to move does not exist locally!
         if not os.path.exists(full_src_path):
             print(f"⚠️ Cannot apply [MOVED] event. Source '{src_name}' is missing.")
             request_file_fallback(mesh_engine, sender_ip, dest_name)
@@ -108,12 +105,10 @@ def on_remote_file_received(payload, sender_ip: str, mesh_engine):
         os.rename(full_src_path, full_dest_path)
         print(f"🚚 File moved locally: {full_dest_path}")
             
-    # CASE 3: Process Standard Writes (Created/Modified)
     elif action in ("CREATED", "MODIFIED"):
         file_name = payload["file_name"]
         file_data = payload.get("file_data")
         
-        # Critical Fallback Trigger: Data field is missing or empty
         if not file_data:
             print(f"⚠️ Received [{action}] payload for '{file_name}' with no file data.")
             request_file_fallback(mesh_engine, sender_ip, file_name)
