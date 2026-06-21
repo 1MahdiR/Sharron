@@ -8,16 +8,12 @@ MAGIC_WORD = "SHARRON_PING"
 
 class DiscoveryMesh:
     def __init__(self, hostname: str, crypto_engine: CryptoEngine, peer_discovered_callback):
-        """
-        Initializes the Discovery engine.
-        """
         self.hostname = hostname
         self.crypto = crypto_engine
         self.peer_callback = peer_discovered_callback
         self.running = False
 
     def start(self):
-        """Spins up the background discovery threads."""
         self.running = True
 
         listener_thread = threading.Thread(target=self._listen_loop, daemon=True)
@@ -29,11 +25,9 @@ class DiscoveryMesh:
         print("📡 Sharron Discovery Network Mesh is running...")
 
     def stop(self):
-        """Gracefully halts the discovery workers."""
         self.running = False
 
     def _broadcast_loop(self):
-        """Broadcasts our encrypted identity to the subnet every 3 seconds."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         
@@ -49,7 +43,6 @@ class DiscoveryMesh:
         sock.close()
 
     def _listen_loop(self):
-        """Listens on port 59999 for encrypted broadcasts from other Sharron nodes."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         

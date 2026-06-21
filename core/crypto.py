@@ -6,17 +6,10 @@ from cryptography.hazmat.primitives import hashes
 
 class CryptoEngine:
     def __init__(self, passphrase: str):
-        """
-        Initializes the CryptoEngine using a passphrase.
-        """
         self.key = self._derive_key(passphrase)
         self.cipher = Fernet(self.key)
 
     def _derive_key(self, passphrase: str) -> bytes:
-        """
-        Derives a deterministic 32-byte key from the passphrase.
-        Uses a fixed system salt so the key is uniform across all devices.
-        """
         STATIC_SYSTEM_SALT = b'sharron_mesh_fixed_backbone_salt'
         
         kdf = PBKDF2HMAC(

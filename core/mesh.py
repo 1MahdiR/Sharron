@@ -7,11 +7,6 @@ TCP_PORT = 58888
 
 class MeshNetwork:
     def __init__(self, crypto_engine: CryptoEngine, remote_change_callback=None):
-        """
-        Initializes the TCP Mesh Network.
-        
-        :param crypto_engine: Fully initialized CryptoEngine instance
-        """
         self.crypto = crypto_engine
         self.server_socket = None
         self.running = False
@@ -21,20 +16,17 @@ class MeshNetwork:
         self.remote_change_callback = remote_change_callback
 
     def register_peer(self, peer_ip: str):
-        """Adds a newly discovered peer IP address to the active routing tables."""
         if peer_ip not in self.discovered_peers:
             self.discovered_peers.add(peer_ip)
             print(f"🔗 Peer {peer_ip} registered in mesh network memory.")
 
     def start_server(self):
-        """Spins up the permanent TCP listening server in a background thread."""
         self.running = True
         server_thread = threading.Thread(target=self._server_loop, daemon=True)
         server_thread.start()
         print(f"🔒 TCP Mesh Server listening securely on port {TCP_PORT}...")
 
     def stop(self):
-        """Safely tears down the TCP server socket."""
         self.running = False
         if self.server_socket:
             try:
@@ -43,7 +35,6 @@ class MeshNetwork:
                 pass
 
     def _server_loop(self):
-        """Accepts incoming peer connections and sends them to a handshake handler."""
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         
@@ -69,7 +60,6 @@ class MeshNetwork:
                     break
 
     def _handle_incoming_connection(self, sock: socket.socket, addr: tuple):
-        """Executes handshake and streams the entire payload dynamically regardless of size."""
         peer_ip = addr[0]
         try:
             sock.settimeout(5.0)
@@ -114,10 +104,6 @@ class MeshNetwork:
             sock.close()
 
     def send_secure_payload(self, target_ip: str, payload: dict) -> bool:
-        """
-        Connects to a remote peer, solves their security challenge, 
-        and pushes an encrypted JSON message block.
-        """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5.0) # Prevent hanging forever if host is unreachable
 
@@ -152,10 +138,6 @@ class MeshNetwork:
             sock.close()
 
     def broadcast_payload(self, payload: dict):
-        """
-        Iterates over all registered peer IP addresses and dispatches
-        the secure payload to each target.
-        """
         if not self.discovered_peers:
             print("📭 Broadcast skipped: No registered peers in routing memory.")
             return

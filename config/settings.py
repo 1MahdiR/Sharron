@@ -22,7 +22,6 @@ class Settings:
                 pass
 
     def initialize_fresh_cluster(self, default_path="SharronDrive"):
-        """Creates the native local sync directory and base config file."""
         self.sync_path = os.path.abspath(default_path)
         if not os.path.exists(self.sync_path):
             os.makedirs(self.sync_path)
@@ -34,7 +33,6 @@ class Settings:
             json.dump(config_data, f, indent=4)
 
     def save_passphrase_to_memory(self, passphrase: str):
-        """Caches the passphrase in runtime memory (volatile session storage)."""
         self.passphrase_cache = passphrase
 
     def get_raw_passphrase_for_session(self) -> str:
