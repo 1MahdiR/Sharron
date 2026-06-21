@@ -82,6 +82,15 @@ def on_local_file_changed(event):
 def on_remote_file_received(payload, sender_ip: str, mesh_engine):
     action = payload["action"]
     app_settings = Settings()
+
+    if action == "FILE_REQUEST":
+        handle_incoming_file_request(
+            mesh_engine=mesh_engine,
+            peer_ip=sender_ip,
+            requested_file=payload["file_name"],
+            sync_path=app_settings.sync_path
+        )
+        return
     
     if action == "FILE_NOT_FOUND":
         print(f"❌ [Action Aborted] Remote peer does not have '{payload['file_name']}'. Dropping operation.")
