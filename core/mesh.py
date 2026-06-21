@@ -72,6 +72,8 @@ class MeshNetwork:
         """Executes handshake and streams the entire payload dynamically regardless of size."""
         peer_ip = addr[0]
         try:
+            sock.settimeout(5.0)
+
             challenge = self.crypto.generate_challenge()
             sock.sendall(challenge.encode('utf-8'))
 
@@ -85,6 +87,8 @@ class MeshNetwork:
             print(f"✅ [Handshake Verified] Secure session established with {peer_ip}!")
 
             sock.sendall(b"OK")
+
+            sock.settimeout(300.0)
             
             chunks = []
             while True:
@@ -129,6 +133,8 @@ class MeshNetwork:
             if auth_confirmation != "OK":
                 print(f"❌ Remote peer rejected authentication.")
                 return False
+            
+            sock.settimeout(300.0)
 
             raw_bytes = json.dumps(payload).encode('utf-8')
             encrypted_payload = self.crypto.encrypt_data(raw_bytes)
