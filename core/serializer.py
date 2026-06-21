@@ -26,7 +26,11 @@ class EventSerializer:
     def serialize(cls, action: str, src_name: str, dest_name: str, sync_path: str) -> dict:
         payload = {
             "action": action,
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "src_name": None,
+            "dest_name": None,
+            "file_name": None,
+            "file_data": None
         }
 
         if action == "MOVED":
